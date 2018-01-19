@@ -196,7 +196,6 @@ get_calls_from_line = function(line,
                as.character(lang_head(lang_head(line))),
                current_function)},
         error = function(e) {
-          print(line)
           return(paste0("INVALID::", current_function))
         })
     }
