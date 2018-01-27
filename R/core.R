@@ -33,8 +33,6 @@ explore_package = function(package_name,
                                                          ":::"),
                                                   name_need_quote(x)) }))
 
-  encoded_functions = c("base::unloadNamespace")
-
   # Figure out which functions each function calls
   results = sapply(encoded_functions,
                    get_calls_from_function,
