@@ -1,37 +1,37 @@
-# Clear a progress bar
-clear_progress_bar = function(cache_this) {
-  # If there's no progress bar, then we don't need to clear it.
-  if(!cache_this[["show_progress"]]) {
+#' Captures whether an R language statement is the assignment of a function
+#' call.
+#'
+#' @param line An R statement
+#' @param cache_this An environment to cache the results so this does not need
+#' to be a two-pass parser
+#' @importFrom rlang is_lang lang_head lang_tail is_primitive
+capture_internal_function_def = function(line, function_name, cache_this) {
+  if(!is_lang(line)) {
     return()
   }
 
-  # Manually close the progress bar.
-  if("_progress_bar" %in% names(cache_this)) {
-    close(cache_this[["_progress_bar"]])
+  if(deparse(lang_head(line)) %in% c("<-", "=")) {
+    variable_name = deparse(lang_tail(line)[[1]])
+    assigned_to = lang_fn(
+      lang_tail(line)[[2]]
+      )
+
+    if(is_primitive(assigned_to) &&
+       deparse(assigned_to) == ".Primitive(\"function\")") {
+
+      if(!"internal_fn_defn" %in% names(cache_this)) {
+        cache_this[["internal_fn_defn"]] = list()
+      }
+
+      if(!function_name %in% names(cache_this[["internal_fn_defn"]])) {
+        cache_this[["internal_fn_defn"]][[function_name]] = list(variable_name)
+      } else {
+        list.append(cache_this[["internal_fn_defn"]][[function_name]],
+                    variable_name)
+      }
+    }
   }
 }
-
-# Setup or tick a progress bar.
-#' @importFrom utils txtProgressBar setTxtProgressBar
-tick_progress_bar = function(cache_this, max_length) {
-  # If we don't want a progress bar, dummy out of this function
-  if(!cache_this[["show_progress"]]) {
-    return()
-  }
-
-  if(!"_progress" %in% names(cache_this)) {
-    # Initialize to 0/max_length
-    cache_this[["_progress_bar"]] = txtProgressBar(min = 0,
-                                                    max = max_length,
-                                                    style = 3)
-    cache_this[["_progress"]] = 0
-  }
-  # Increment and update.
-  cache_this[["_progress"]] = cache_this[["_progress"]] + 1
-  setTxtProgressBar(cache_this[["_progress_bar"]],
-                    cache_this[["_progress"]])
-}
-
 
 #' Determines whether an R object name needs to be backticked for to be used.
 #'
@@ -215,16 +215,25 @@ where_is_foreign_function_from = function(current_function,
 get_calls_from_line = function(line,
                                all_functions,
                                package_name,
+                               function_name,
                                argument_names,
                                cache_this) {
 
   # If the line processed isn't a language call, then it's a symbol
   # (useless for us) or NULL (also useless for us)
   if(is_lang(line)) {
+
     # The current function -- will not return package prefix.
     current_function = tryCatch({
-      lang_name(line)
+      ln = lang_name(line)
+
+      # In case the current call is a function definition, we need to know for
+      # later calls
+      capture_internal_function_def(line, function_name, cache_this)
+
+      ln
       }, error = function(e) {
+
         # Certain cases might be TRUE for is_lang but FALSE when you run
         # lang_name; one-term formula objects are one such. But that's OK,
         # these aren't functions, so we can ignore them.
@@ -246,6 +255,7 @@ get_calls_from_line = function(line,
                                       get_calls_from_line,
                                       all_functions,
                                       package_name,
+                                      function_name,
                                       argument_names,
                                       cache_this),
                                recursive=TRUE)
@@ -325,6 +335,13 @@ get_calls_from_line = function(line,
             return(NULL)
           }
 
+          # If the function name matches a variable to which a function was
+          # assigned within the current function, it's that.
+          if(current_function %in%
+             cache_this[["internal_fn_defn"]][[function_name]]) {
+            return(NULL)
+          }
+
           # This is bad and means we couldn't figure out where the heck
           # the function was from -- maybe look at warning or even erroring
           # on this later.
@@ -340,6 +357,19 @@ get_calls_from_line = function(line,
   return(NULL)
 }
 
+#' Gets all calls from a function
+#'
+#' The core workhorse of werner, this function gets all calls made from a given
+#' function in a package by breaking the function call into a series of
+#' discrete lines and handing each line off to `get_calls_from_line`.
+#'
+#' @param function_name Character vector name of a function, namespaced
+#' @param all_functions Vector of character strings listing all functions in
+#' the package's namespace
+#' @param package_name Name of the package we're searching
+#' @param cache_this Environent to hold the progress bar and memoised progress
+#' @returns List of vectors of character strings describing each function's
+#' calls.
 #' @importFrom rlang lang_args parse_expr is_function fn_fmls_names
 # Given a function, split it by line and get the calls on each line
 get_calls_from_function = function(function_name,
@@ -388,6 +418,7 @@ get_calls_from_function = function(function_name,
                               get_calls_from_line,
                               all_functions,
                               package_name,
+                              function_name,
                               argument_names,
                               cache_this))))
 }

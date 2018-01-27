@@ -25,13 +25,15 @@ explore_package = function(package_name,
   function_results = get_functions_from_package(package_name, cache_this)
   all_functions = c(function_results$public, function_results$private)
 
-  # Every function we need to chase down the rabbit whole
+  # Every function we need to chase down the rabbit hole
   encoded_functions = unname(sapply(all_functions,
                              function(x) { paste0(package_name,
                                                   ifelse(x %in% function_results$public,
                                                          "::",
                                                          ":::"),
                                                   name_need_quote(x)) }))
+
+  encoded_functions = c("base::unloadNamespace")
 
   # Figure out which functions each function calls
   results = sapply(encoded_functions,
