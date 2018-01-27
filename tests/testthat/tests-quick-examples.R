@@ -1,21 +1,25 @@
 context("werner")
 
-test_that("Zelig", {
-  explore_package("Zelig")
-})
-
-test_that("stats", {
+test_that("Default built-in packages", {
   explore_package("stats")
+  explore_package("base")
+  explore_package("stats4")
+  explore_package("datasets")
+  explore_package("graphocs")
+  explore_package("tools")
+  explore_package("utils")
 })
 
-test_that("dplyr", {
-  adjacency_matrix("dplyr")
+test_that("Dependencies that we're loading anyway", {
+  explore_package("rlang")
+  explore_package("methods")
+  explore_package("Matrix")
+
+  explore_package("testthat")
+  explore_package("progress")
+  explore_package("knitr")
 })
 
-test_that("foreign", {
-  adjacency_matrix("foreign")
-})
-
-test_that("devtools", {
-  adjacency_matrix("devtools", coerce_to_matrix=TRUE)
+test_that("Introspection", {
+  explore_package("werner")
 })

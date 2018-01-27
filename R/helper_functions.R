@@ -46,8 +46,16 @@ tick_progress_bar = function(cache_this, max_length) {
 
 # Determines whether an R object needs to be backticked.
 name_need_quote = function(text) {
+  # If it's in the reserved keywords set, it needs to be backticked.
+  if(text %in% c("while", "repeat", "next", "if", "function",
+                 "for", "break", "else", "in")) {
+    return(paste0("`", text, "`"))
+  }
+
+  # If it's got non-standard symbols, it needs to be backticked.
   if(grepl("^[A-Za-z0-9.][A-Za-z0-9._]*$", text)) { return(text) }
   else { return(paste0("`", text, "`")) }
+
 }
 
 #' @importFrom rlang is_function parse_expr
@@ -79,7 +87,11 @@ get_functions_from_package = function(package_name, cache_this) {
   }
 
   # Load the package so we can find this stuff on the search path.
-  suppressMessages(invisible(library(package_name, character.only = TRUE)))
+  tryCatch({
+    suppressMessages(invisible(library(package_name, character.only = TRUE)))
+  }, error = function(e) {
+    stop("Error loading package `", package_name, "` while mapping package.")
+  })
 
   # What it exports (public)
   illegal_exports = c(".Depends")
@@ -94,11 +106,15 @@ get_functions_from_package = function(package_name, cache_this) {
     public_function_vector)
 
   # Knock out the non-function variables.
-  public_function_vector = public_function_vector[
-    which_are_functions(package_name, public_function_vector, 1)]
+  if(length(public_function_vector)) {
+    public_function_vector = public_function_vector[
+      which_are_functions(package_name, public_function_vector, 1)]
+  }
 
-  private_function_vector = private_function_vector[
-    which_are_functions(package_name, private_function_vector, 0)]
+  if(length(private_function_vector)) {
+    private_function_vector = private_function_vector[
+      which_are_functions(package_name, private_function_vector, 0)]
+  }
 
   cache_this[["gffp"]][[package_name]] = list(public = public_function_vector,
                                               private = private_function_vector)
@@ -155,6 +171,7 @@ where_is_foreign_function_from = function(current_function,
 get_calls_from_line = function(line,
                                all_functions,
                                package_name,
+                               argument_names,
                                cache_this) {
 
     # If the line processed isn't a language call, then it's a symbol
@@ -171,11 +188,20 @@ get_calls_from_line = function(line,
     })
     if(is.null(current_function)) return(NULL)
 
+    # Basically, functions inside these wrappers get non-standardly evaluated;
+    # sometimes people pass as strings, otherwise as code calls. I want to
+    # cut off the recursion rather than process these.
+    if(current_function %in% c(".Internal", ".Primitive"))
+    {
+      return(list(paste0("base::", current_function)))
+    }
+
     # Recursively check for other functions from the line.
     recursive_descent = unlist(lapply(lang_tail(line),
                                       get_calls_from_line,
                                       all_functions,
                                       package_name,
+                                      argument_names,
                                       cache_this),
                                recursive=TRUE)
 
@@ -206,13 +232,16 @@ get_calls_from_line = function(line,
       }
     }
 
-    # We only care if it's not one of these packages.
+    # We only care if it's not one of these packages -- unless we're trying
+    # to explore that package
     base_packages = c("base", "package:base", "package:compiler",
                       "package:datasets", "package:graphics", "package:grDevices",
                       "package:grid", "package:methods", "package:parallel",
                       "package:splines", "package:stats", "package:stats4",
                       "package:tcltk", "package:tools", "package:translations",
                       "package:utils")
+    base_packages = setdiff(base_packages, c(package_name,
+                                             paste0("package:", package_name)))
 
     # If it's a base function, then ignore whatever we found at this node, just
     # get the recursive functions
@@ -243,6 +272,9 @@ get_calls_from_line = function(line,
                as.character(lang_head(lang_head(line))),
                current_function)},
         error = function(e) {
+          if(current_function %in% argument_names) {
+            return(NULL)
+          }
           return(paste0("INVALID::", current_function))
         })
     }
@@ -254,7 +286,7 @@ get_calls_from_line = function(line,
   return(NULL)
 }
 
-#' @importFrom rlang lang_args parse_expr is_function
+#' @importFrom rlang lang_args parse_expr is_function fn_fmls_names
 # Given a function, split it by line and get the calls on each line
 get_calls_from_function = function(function_name,
                                    all_functions,
@@ -265,6 +297,8 @@ get_calls_from_function = function(function_name,
   tick_progress_bar(cache_this, length(all_functions))
 
   # First, let's get whatever this thing is.
+  # parse_expr changes character string to an unquoted r function call
+  # eval does the call and returns a namespaced, environmented function.
   candidate_function = eval(parse_expr(function_name))
 
   # This error should never trigger since we previously checked if these
@@ -273,8 +307,15 @@ get_calls_from_function = function(function_name,
     return(NULL)
   }
 
-  # parse_expr changes character string to an unquoted r function call
-  # eval does the call and returns a namespaced, environmented function.
+  # rlang fn_fmls_names extracts argument names; a handful of the reserve
+  # keywords might fail on this including base::`break`, so we return NULL
+  # for those.
+  argument_names = tryCatch({
+    setdiff(fn_fmls_names(candidate_function), c("..."))
+  }, error = function(e) {
+    return(NULL)
+  })
+
   # body gets function body
   function_body = body(candidate_function)
 
@@ -292,5 +333,6 @@ get_calls_from_function = function(function_name,
                               get_calls_from_line,
                               all_functions,
                               package_name,
+                              argument_names,
                               cache_this))))
 }
