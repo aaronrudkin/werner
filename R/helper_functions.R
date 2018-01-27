@@ -412,11 +412,25 @@ get_calls_from_function = function(function_name,
   each_line = lang_args(function_body)
 
   # Now that we have a list, lapply one line at a time.
-  return(unique(unlist(lapply(each_line,
-                              get_calls_from_line,
-                              all_functions,
-                              package_name,
-                              function_name,
-                              argument_names,
-                              cache_this))))
+  results = unique(unlist(lapply(each_line,
+                                 get_calls_from_line,
+                                 all_functions,
+                                 package_name,
+                                 function_name,
+                                 argument_names,
+                                 cache_this)))
+
+  if(any(grepl("^INVALID::", results)) &&
+     length(cache_this[["internal_fn_defn"]][[function_name]])) {
+
+    invalid_ids = which(grepl("^INVALID::", results))
+    found_funcs = which(gsub("^INVALID::", "", results) %in%
+                          cache_this[["internal_fn_defn"]][[function_name]])
+
+    afflicted_ids = intersect(invalid_ids, found_funcs)
+
+    results = results[-afflicted_ids]
+  }
+
+  return(results)
 }
