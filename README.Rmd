@@ -12,6 +12,8 @@ set.seed(19861108)
 
 # werner: Improve R package quality by mapping interdependence between functions.
 
+[![Build Status](https://travis-ci.org/aaronrudkin/werner.svg?branch=master)](https://travis-ci.org/aaronrudkin/werner) [![Coverage Status](https://coveralls.io/repos/github/aaronrudkin/werner/badge.svg?branch=master)](https://coveralls.io/github/aaronrudkin/werner?branch=master)
+
 ### Installing werner
 
 To install the latest development release of **werner**, please ensure that you are running version 3.3 or later of R and run the following code:
