@@ -4,18 +4,31 @@
 \alias{adjacency_matrix}
 \title{Generates an adjacency matrix between functions in a package}
 \usage{
-adjacency_matrix(package_name, coerce_to_matrix = FALSE)
+adjacency_matrix(package_name, coerce_to_matrix = FALSE,
+  show_progress = FALSE)
 }
 \arguments{
-\item{package_name}{a character string containing the name of an installed package}
+\item{package_name}{a character string containing the name of an installed
+package}
 
-\item{coerce_to_matrix}{If TRUE, return an R matrix instead of a sparse Matrix.}
+\item{coerce_to_matrix}{If TRUE, return an R `matrix` instead of a sparse
+`Matrix`.}
+
+\item{show_progress}{a boolean indicating whether to display a progress
+bar. This will use the `progress` package if installed, or if not use R's
+`txtProgressBar`}
 }
 \value{
-A square matrix where each row and column are functions in the package.
-The matrix is an adjacency function: a 1 in a cell indicates that the function named
-in the row calls the function named in the column.
+A square matrix where each row and column are functions in the
+package. The matrix is an adjacency function: a 1 in a cell indicates that
+the function named in the row calls the function named in the column.
 }
 \description{
-Generates an adjacency matrix between functions in a package
+This function takes the name of an R package and explores each function
+within that package to map which other functions that function calls. This
+creates "dependency graph" between the functions, which can allow you to
+quickly understand how a package fits together, and also diagnose pathologies
+in package code like excessive or unwarranted coupling between functions or
+orphaned functions. The returned data is a matrix, by default a sparse
+`Matrix` from the `Matrix` package.
 }

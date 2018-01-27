@@ -4,10 +4,15 @@
 \alias{explore_package}
 \title{Maps relationships between functions in a package.}
 \usage{
-explore_package(package_name)
+explore_package(package_name, show_progress = FALSE)
 }
 \arguments{
-\item{package_name}{a character string containing the name of an installed package}
+\item{package_name}{a character string containing the name of an installed
+package}
+
+\item{show_progress}{a boolean indicating whether to display a progress bar.
+This will use the `progress` package if installed, or if not use R's
+`txtProgressBar`}
 }
 \value{
 A list of each function in the package, each either NULL or
@@ -15,5 +20,10 @@ a vector of character strings referring to which other functions the function
 calls.
 }
 \description{
-Maps relationships between functions in a package.
+This function takes the name of an R package and explores each function
+within that package to map which other functions that function calls. This
+creates "dependency graph" between the functions, which can allow you to
+quickly understand how a package fits together, and also diagnose pathologies
+in package code like excessive or unwarranted coupling between functions or
+orphaned functions. The returned data is a list.
 }

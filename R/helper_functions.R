@@ -1,3 +1,49 @@
+# Clear a progress bar
+clear_progress_bar = function(cache_this) {
+  use_good = requireNamespace("progress", quietly = TRUE)
+
+  if(!cache_this[["show_progress"]]) {
+    return()
+  }
+
+  if(use_good) {
+    # progress pbs auto-clear.
+  } else {
+    if("_progress_bar" %in% names(cache_this)) {
+      close(cache_this[["_progress_bar"]])
+    }
+  }
+}
+
+# Setup or tick a progress bar.
+#' @importFrom utils txtProgressBar setTxtProgressBar
+tick_progress_bar = function(cache_this, max_length) {
+  use_good = requireNamespace("progress", quietly = TRUE)
+
+  if(!cache_this[["show_progress"]]) {
+    return()
+  }
+
+  if(use_good) {
+    if(!"_progress_bar" %in% names(cache_this)) {
+      cache_this[["_progress_bar"]] =
+        progress::progress_bar$new(total = max_length)
+    }
+    cache_this[["_progress_bar"]]$tick()
+  } else {
+    if(!"_progress" %in% names(cache_this)) {
+      cache_this[["_progress_bar"]] = txtProgressBar(min = 0,
+                                                     max = max_length,
+                                                     style = 3)
+      cache_this[["_progress"]] = 0
+    }
+    cache_this[["_progress"]] = cache_this[["_progress"]] + 1
+    setTxtProgressBar(cache_this[["_progress_bar"]],
+                      cache_this[["_progress"]])
+  }
+}
+
+
 # Determines whether an R object needs to be backticked.
 name_need_quote = function(text) {
   if(grepl("^[A-Za-z0-9.][A-Za-z0-9._]*$", text)) { return(text) }
@@ -110,7 +156,8 @@ get_calls_from_line = function(line,
                                all_functions,
                                package_name,
                                cache_this) {
-  # If the line processed isn't a language call, then it's a symbol
+
+    # If the line processed isn't a language call, then it's a symbol
   # (useless for us) or NULL (also useless for us)
   if(is_lang(line)) {
     # The current function -- will not return package prefix.
@@ -207,27 +254,38 @@ get_calls_from_line = function(line,
   return(NULL)
 }
 
-#' @importFrom rlang lang_args get_expr quo parse_expr
+#' @importFrom rlang lang_args parse_expr is_function
 # Given a function, split it by line and get the calls on each line
 get_calls_from_function = function(function_name,
                                    all_functions,
                                    package_name,
                                    cache_this) {
-  # parse_expr changes string function_name to a function call
-  # eval executes it
-  # !! forcibly returns the parsed code
-  # quo stores it in a quosure
-  # get_expr extracts the code from the quosure
-  # in general we then need lang_args to extract the lines.
-  each_line = tryCatch({
-    each_line = lang_args(get_expr(quo(!! eval(parse_expr(function_name)))))
-    each_line
-    },
-    error = function(e) {
-      each_line = list()
-      each_line[[1]] = get_expr(quo(!! eval(parse_expr(function_name))))
-      return(each_line)
-  })
+
+    # Tick the progress bar.
+  tick_progress_bar(cache_this, length(all_functions))
+
+  # First, let's get whatever this thing is.
+  candidate_function = eval(parse_expr(function_name))
+
+  # This error should never trigger since we previously checked if these
+  # objects were functions, but you never know.
+  if(!is_function(candidate_function)) {
+    return(NULL)
+  }
+
+  # parse_expr changes character string to an unquoted r function call
+  # eval does the call and returns a namespaced, environmented function.
+  # body gets function body
+  function_body = body(candidate_function)
+
+  # Occasionally this happens when the function just straight returns an
+  # object; Zelig::summary.Arima is one example of something that triggered
+  # this.
+  if(!is_lang(function_body)) {
+    return(NULL)
+  }
+
+  each_line = lang_args(function_body)
 
   # Now that we have a list, lapply one line at a time.
   return(unique(unlist(lapply(each_line,
