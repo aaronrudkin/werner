@@ -2,15 +2,16 @@
 #' call.
 #'
 #' @param line An R statement
+#' @param function_name The name of the function that this line is in.
 #' @param cache_this An environment to cache the results so this does not need
 #' to be a two-pass parser
-#' @importFrom rlang is_lang lang_head lang_tail is_primitive
+#' @importFrom rlang is_lang lang_head lang_tail is_primitive lang_fn
 capture_internal_function_def = function(line, function_name, cache_this) {
   if(!is_lang(line)) {
     return()
   }
 
-  if(deparse(lang_head(line)) %in% c("<-", "=")) {
+  if(deparse(lang_head(line))[[1]] %in% c("<-", "=")) {
     variable_name = deparse(lang_tail(line)[[1]])
     assigned_to = lang_fn(
       lang_tail(line)[[2]]
@@ -24,10 +25,11 @@ capture_internal_function_def = function(line, function_name, cache_this) {
       }
 
       if(!function_name %in% names(cache_this[["internal_fn_defn"]])) {
-        cache_this[["internal_fn_defn"]][[function_name]] = list(variable_name)
+        cache_this[["internal_fn_defn"]][[function_name]] = c(variable_name)
       } else {
-        list.append(cache_this[["internal_fn_defn"]][[function_name]],
-                    variable_name)
+        cache_this[["internal_fn_defn"]][[function_name]] = c(
+          cache_this[["internal_fn_defn"]][[function_name]],
+          variable_name)
       }
     }
   }
@@ -291,11 +293,13 @@ get_calls_from_line = function(line,
     # We only care if it's not one of these packages -- unless we're trying
     # to explore that package -- also exempt the R6 methods.
     base_packages = c("base", "package:base", "package:compiler",
-                      "package:datasets", "package:graphics", "package:grDevices",
-                      "package:grid", "package:methods", "package:parallel",
-                      "package:splines", "package:stats", "package:stats4",
-                      "package:tcltk", "package:tools", "package:translations",
-                      "package:utils", "package:R6_capsule")
+                      "package:datasets", "package:graphics",
+                      "package:grDevices", "package:grid", "package:methods",
+                      "package:parallel", "package:splines", "package:stats",
+                      "package:stats4", "package:tcltk", "package:tools",
+                      "package:translations", "package:utils",
+                      "package:R6_capsule",
+                      "package:tools:rstudio", "tools:rstudio")
     base_packages = setdiff(base_packages, c(package_name,
                                              paste0("package:", package_name)))
 
