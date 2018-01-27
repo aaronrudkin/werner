@@ -10,9 +10,7 @@ explore_package(package_name, show_progress = FALSE)
 \item{package_name}{a character string containing the name of an installed
 package}
 
-\item{show_progress}{a boolean indicating whether to display a progress bar.
-This will use the `progress` package if installed, or if not use R's
-`txtProgressBar`}
+\item{show_progress}{a boolean indicating whether to display a progress bar.}
 }
 \value{
 A list of each function in the package, each either NULL or

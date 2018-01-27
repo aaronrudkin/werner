@@ -15,8 +15,7 @@ package}
 `Matrix`.}
 
 \item{show_progress}{a boolean indicating whether to display a progress
-bar. This will use the `progress` package if installed, or if not use R's
-`txtProgressBar`}
+bar.}
 }
 \value{
 A square matrix where each row and column are functions in the

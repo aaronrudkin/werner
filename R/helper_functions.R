@@ -1,50 +1,46 @@
 # Clear a progress bar
 clear_progress_bar = function(cache_this) {
-  use_good = requireNamespace("progress", quietly = TRUE)
-
+  # If there's no progress bar, then we don't need to clear it.
   if(!cache_this[["show_progress"]]) {
     return()
   }
 
-  if(use_good) {
-    # progress pbs auto-clear.
-  } else {
-    if("_progress_bar" %in% names(cache_this)) {
-      close(cache_this[["_progress_bar"]])
-    }
+  # Manually close the progress bar.
+  if("_progress_bar" %in% names(cache_this)) {
+    close(cache_this[["_progress_bar"]])
   }
 }
 
 # Setup or tick a progress bar.
 #' @importFrom utils txtProgressBar setTxtProgressBar
 tick_progress_bar = function(cache_this, max_length) {
-  use_good = requireNamespace("progress", quietly = TRUE)
-
+  # If we don't want a progress bar, dummy out of this function
   if(!cache_this[["show_progress"]]) {
     return()
   }
 
-  if(use_good) {
-    if(!"_progress_bar" %in% names(cache_this)) {
-      cache_this[["_progress_bar"]] =
-        progress::progress_bar$new(total = max_length)
-    }
-    cache_this[["_progress_bar"]]$tick()
-  } else {
-    if(!"_progress" %in% names(cache_this)) {
-      cache_this[["_progress_bar"]] = txtProgressBar(min = 0,
-                                                     max = max_length,
-                                                     style = 3)
-      cache_this[["_progress"]] = 0
-    }
-    cache_this[["_progress"]] = cache_this[["_progress"]] + 1
-    setTxtProgressBar(cache_this[["_progress_bar"]],
-                      cache_this[["_progress"]])
+  if(!"_progress" %in% names(cache_this)) {
+    # Initialize to 0/max_length
+    cache_this[["_progress_bar"]] = txtProgressBar(min = 0,
+                                                    max = max_length,
+                                                    style = 3)
+    cache_this[["_progress"]] = 0
   }
+  # Increment and update.
+  cache_this[["_progress"]] = cache_this[["_progress"]] + 1
+  setTxtProgressBar(cache_this[["_progress_bar"]],
+                    cache_this[["_progress"]])
 }
 
 
-# Determines whether an R object needs to be backticked.
+#' Determines whether an R object name needs to be backticked for to be used.
+#'
+#' This is a simple wrapper for two cases where function names need to be
+#' backticked -- first, if the name is a reserved keyword, second if the name
+#' has certain symbols in its name.
+#'
+#' @param text Function name to check
+#' @return A character vector with the fixed version of the text
 name_need_quote = function(text) {
   # If it's in the reserved keywords set, it needs to be backticked.
   if(text %in% c("while", "repeat", "next", "if", "function",
@@ -58,9 +54,22 @@ name_need_quote = function(text) {
 
 }
 
+#' Confirm which objects from a package namespace are functions
+#'
+#' This is a simple wrapper for checking if everything in a package namespace
+#' is a function or something else.
+#'
+#' @param package_name The name of the package we're checking; needed to prefix
+#' the namespace of the function call.
+#' @param candidate_functions Vector of character vectors for function names
+#' we're checking.
+#' @param public Determines how many colons to put in the
+#' @return A vector of booleans for whether or not each item is a function.
 #' @importFrom rlang is_function parse_expr
 which_are_functions = function(package_name, candidate_functions, public) {
-  # Just try to clobber it as an expression with the package name prefix.
+  # Set ::/::: prefix in namespace depending on if it's public or not
+  # Then parse_expr to get a call; eval to make the call a function closure
+  # is_function to check if it's a function.
   result = sapply(candidate_functions, function(x) {
     is_function(
       eval(
@@ -78,34 +87,50 @@ which_are_functions = function(package_name, candidate_functions, public) {
   return(result)
 }
 
-# Given a package name, figure out which of its methods are public and which
-# are private
+#' Extracts all the functions from a package
+#'
+#' Loads a package, gets all the functions in the package, cache the result.
+#' @param package_name Character vector name of a package
+#' @param cache_this an environment -- used to memoise the function.
+#' @return Vector of character strings containing all the functions in the
+#' package, namedspaced appropriately.
 get_functions_from_package = function(package_name, cache_this) {
-  if("gffp" %in% names(cache_this) &
+
+  # If we've already run this then we should return the cached version.
+  # This, aagin, is basically a primitive memoisation implementation.
+  if("gffp" %in% names(cache_this) &&
      package_name %in% names(cache_this[["gffp"]])) {
     return(cache_this[["gffp"]][[package_name]])
   }
 
   # Load the package so we can find this stuff on the search path.
-  tryCatch({
+  error_loading = tryCatch({
     suppressMessages(invisible(library(package_name, character.only = TRUE)))
+    FALSE
   }, error = function(e) {
-    stop("Error loading package `", package_name, "` while mapping package.")
+    return(TRUE)
   })
+  if(error_loading) {
+    stop("Error loading package `", package_name, "` while mapping package.")
+  }
 
   # What it exports (public)
+  # This .Depends variable shows up in a few packages, I think as part of one
+  # of the object systems, and since it doesn't export properly and can't be
+  # accessed, let's just drop it from the list of stuff we care about.
   illegal_exports = c(".Depends")
 
   public_function_vector = ls(paste0("package:", package_name), all.names = TRUE)
   public_function_vector = setdiff(
     public_function_vector,
     illegal_exports)
-  # Everything in the namespace (private + public), setdiffed on the public stuff.
+
+  # If it's in the ls and it's not public, then it's private.
   private_function_vector = setdiff(
     ls(getNamespace(package_name), all.names = TRUE),
     public_function_vector)
 
-  # Knock out the non-function variables.
+  # Okay, now strip the exports that aren't functions
   if(length(public_function_vector)) {
     public_function_vector = public_function_vector[
       which_are_functions(package_name, public_function_vector, 1)]
@@ -116,26 +141,41 @@ get_functions_from_package = function(package_name, cache_this) {
       which_are_functions(package_name, private_function_vector, 0)]
   }
 
+  # Add this to the cache.
   cache_this[["gffp"]][[package_name]] = list(public = public_function_vector,
                                               private = private_function_vector)
 
   # Return data
-  return(list(public = public_function_vector,
-              private = private_function_vector))
+  return(cache_this[["gffp"]][[package_name]])
 }
 
-# Try a few different methods to figure out where the function is from.
+#' Which foreign package is a function being loaded from?
+#'
+#' Figure out which, if any, namespace a function is being loaded from (and
+#' if it is private or public) and return the information.
+#'
+#' @param current_function Name of the function we care about
+#' @param package_name Package it is being called from
+#' @param cache_this An environment -- used to handle the memoisation
+#' @return A character vector containing the namespaced function call or
+#' the namespace INVALID for cases where we've failed.
+#' @importFrom methods findFunction
 where_is_foreign_function_from = function(current_function,
                                           package_name,
                                           cache_this) {
-  if("wifff" %in% names(cache_this) &
+  # If this is cached, skip the function -- this is primitive memoisation
+  if("wifff" %in% names(cache_this) &&
      current_function %in% names(cache_this[["wifff"]])) {
     return(cache_this[["wifff"]][[current_function]])
   }
 
+  # The package's namespace is where the package thinks the function is from.
   namespace_package = getNamespace(package_name)
+  # Okay, where do we get it from?
   function_stack = findFunction(current_function, where=namespace_package)
 
+  # We basically want to iterate through the namespace options to find the
+  # first non-null one.
   if(length(function_stack)) {
     found_package_name = ""
     for(candidate in function_stack) {
@@ -149,32 +189,36 @@ where_is_foreign_function_from = function(current_function,
         if(external_environment_name != "") {
           cache_this[["wifff"]][[current_function]] =
             paste0("package:", external_environment_name)
-          return(paste0("package:", external_environment_name))
+
+          return(cache_this[["wifff"]][[current_function]])
         }
+        # If we couldn't find where it's imported from, we should
+        # move on. I don't think this will happen often.
         next
       }
 
+      # First non-import namespace -- we'll settle for this.
       cache_this[["wifff"]][[current_function]] =
         environmentName(candidate)
-      return(environmentName(candidate))
+      return(cache_this[["wifff"]][[current_function]])
     }
   }
 
+  # We didn't find anything -- how on earth is this function importing?
   cache_this[["wifff"]][[current_function]] = ""
-  return("")
+  return(cache_this[["wifff"]][[current_function]])
 }
 
-#' @importFrom rlang lang_tail lang_head lang_name is_lang
-#' @importFrom methods findFunction
 # Given a line, either recursive break it apart into symbols or
 # if you get to symbols, return the symbols
+#' @importFrom rlang lang_tail lang_head lang_name is_lang
 get_calls_from_line = function(line,
                                all_functions,
                                package_name,
                                argument_names,
                                cache_this) {
 
-    # If the line processed isn't a language call, then it's a symbol
+  # If the line processed isn't a language call, then it's a symbol
   # (useless for us) or NULL (also useless for us)
   if(is_lang(line)) {
     # The current function -- will not return package prefix.
@@ -188,9 +232,10 @@ get_calls_from_line = function(line,
     })
     if(is.null(current_function)) return(NULL)
 
-    # Basically, functions inside these wrappers get non-standardly evaluated;
-    # sometimes people pass as strings, otherwise as code calls. I want to
-    # cut off the recursion rather than process these.
+    # Special handling for .Internal / .Primitive, mostly applies for
+    # the `base` package. Basically, functions inside these wrappers get
+    # non-standardly evaluated; sometimes people pass as strings, otherwise as
+    # code calls. I want to cut off the recursion rather than process these.
     if(current_function %in% c(".Internal", ".Primitive"))
     {
       return(list(paste0("base::", current_function)))
@@ -207,7 +252,7 @@ get_calls_from_line = function(line,
 
     # If we didn't find a function at all -- this typically means there's an
     # anonymous function constructed that we can't resolve -- then just
-    # return the recursive results
+    # return the recursive results -- not sure if this can ever be called?
     if(is.null(current_function)) {
       return(recursive_descent)
     }
@@ -232,14 +277,15 @@ get_calls_from_line = function(line,
       }
     }
 
+
     # We only care if it's not one of these packages -- unless we're trying
-    # to explore that package
+    # to explore that package -- also exempt the R6 methods.
     base_packages = c("base", "package:base", "package:compiler",
                       "package:datasets", "package:graphics", "package:grDevices",
                       "package:grid", "package:methods", "package:parallel",
                       "package:splines", "package:stats", "package:stats4",
                       "package:tcltk", "package:tools", "package:translations",
-                      "package:utils")
+                      "package:utils", "package:R6_capsule")
     base_packages = setdiff(base_packages, c(package_name,
                                              paste0("package:", package_name)))
 
@@ -249,7 +295,7 @@ get_calls_from_line = function(line,
       return(recursive_descent)
     }
 
-    if(!is.na(found_package_name) & length(found_package_name) &
+    if(!is.na(found_package_name) && length(found_package_name) &&
        !found_package_name %in% c("", paste0("package:", package_name))) {
 
       # We've got a function for a foreign package. Is it public or private?
@@ -272,17 +318,25 @@ get_calls_from_line = function(line,
                as.character(lang_head(lang_head(line))),
                current_function)},
         error = function(e) {
+          # If the function name matches an argument in the parent function's
+          # formals, then return NULL; clearly it's a passthrough wrapper for
+          # a function that we can't possibly know.
           if(current_function %in% argument_names) {
             return(NULL)
           }
+
+          # This is bad and means we couldn't figure out where the heck
+          # the function was from -- maybe look at warning or even erroring
+          # on this later.
           return(paste0("INVALID::", current_function))
         })
     }
 
-    # Okay, now return this and the stuff we already had
+    # If we're good, then let's return what we've got and the recursive stuff.
     return(list(current_function, recursive_descent))
   }
 
+  # It wasn't a language call, it was a symbol, so we're at a dead end.
   return(NULL)
 }
 
@@ -293,7 +347,7 @@ get_calls_from_function = function(function_name,
                                    package_name,
                                    cache_this) {
 
-    # Tick the progress bar.
+  # Tick the progress bar.
   tick_progress_bar(cache_this, length(all_functions))
 
   # First, let's get whatever this thing is.
@@ -326,6 +380,7 @@ get_calls_from_function = function(function_name,
     return(NULL)
   }
 
+  # Split body into list of lines, each to be processed.
   each_line = lang_args(function_body)
 
   # Now that we have a list, lapply one line at a time.

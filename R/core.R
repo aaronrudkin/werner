@@ -10,8 +10,6 @@
 #' @param package_name a character string containing the name of an installed
 #' package
 #' @param show_progress a boolean indicating whether to display a progress bar.
-#' This will use the `progress` package if installed, or if not use R's
-#' `txtProgressBar`
 #' @return A list of each function in the package, each either NULL or
 #' a vector of character strings referring to which other functions the function
 #' calls.
@@ -63,8 +61,7 @@ explore_package = function(package_name,
 #' @param coerce_to_matrix If TRUE, return an R `matrix` instead of a sparse
 #' `Matrix`.
 #' @param show_progress a boolean indicating whether to display a progress
-#' bar. This will use the `progress` package if installed, or if not use R's
-#' `txtProgressBar`
+#' bar.
 #' @return A square matrix where each row and column are functions in the
 #' package. The matrix is an adjacency function: a 1 in a cell indicates that
 #' the function named in the row calls the function named in the column.

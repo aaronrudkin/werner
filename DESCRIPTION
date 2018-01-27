@@ -17,6 +17,5 @@ Imports:
     Matrix
 Suggests: 
     knitr,
-    testthat,
-    progress
+    testthat
 VignetteBuilder: knitr
