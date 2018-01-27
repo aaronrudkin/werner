@@ -39,3 +39,12 @@ adjacency_matrix("werner", coerce_to_matrix=TRUE) # Base R matrix.
 ```
 
 These adjacency matrices can be fed to [**igraph**](http://igraph.org/r/) or other graphing packages in R.
+
+### Code Style
+
+Code should adhere to the [tidyverse style guide](http://style.tidyverse.org/), with the exception of assignment operators, which should be the traditional "=" rather than the "<-" assignment. You can check code style by opening the package Rproj file and running:
+
+```{r eval=FALSE}
+library(goodpractice)
+gp(checks = setdiff(all_checks(), "lintr_assignment_linter"))
+```

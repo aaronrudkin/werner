@@ -72,19 +72,19 @@ which_are_functions = function(package_name, candidate_functions, public) {
   # Set ::/::: prefix in namespace depending on if it's public or not
   # Then parse_expr to get a call; eval to make the call a function closure
   # is_function to check if it's a function.
-  result = sapply(candidate_functions, function(x) {
-    is_function(
-      eval(
-        parse_expr(
+  result = vapply(
+    candidate_functions,
+    function(x) {
+      is_function(eval(parse_expr(
           paste0(package_name,
                  ifelse(public,
                         "::",
                         ":::"),
                  name_need_quote(x))
-        )
-      )
-    )
-  })
+      )))
+    },
+    TRUE
+  )
 
   return(result)
 }
@@ -122,7 +122,8 @@ get_functions_from_package = function(package_name, cache_this) {
   # accessed, let's just drop it from the list of stuff we care about.
   illegal_exports = c(".Depends")
 
-  public_function_vector = ls(paste0("package:", package_name), all.names = TRUE)
+  public_function_vector = ls(paste0("package:", package_name),
+                              all.names = TRUE)
   public_function_vector = setdiff(
     public_function_vector,
     illegal_exports)
@@ -261,13 +262,6 @@ get_calls_from_line = function(line,
                                       argument_names,
                                       cache_this),
                                recursive=TRUE)
-
-    # If we didn't find a function at all -- this typically means there's an
-    # anonymous function constructed that we can't resolve -- then just
-    # return the recursive results -- not sure if this can ever be called?
-    if(is.null(current_function)) {
-      return(recursive_descent)
-    }
 
     # Okay, so if we're here, we have a function name.
     # There are three possible places we're going to find this function;

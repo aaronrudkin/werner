@@ -47,3 +47,9 @@ test_that("Skip if not installed example.", {
   skip_if_not_installed("Zelig")
   explore_package("Zelig")
 })
+
+test_that("Self-flattery", {
+  skip_if_not_installed("fabricatr")
+  z = werner:::diagnose_werner_failures("fabricatr")
+  expect_equal(length(z), 0)
+})

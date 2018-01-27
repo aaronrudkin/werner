@@ -26,12 +26,20 @@ explore_package = function(package_name,
   all_functions = c(function_results$public, function_results$private)
 
   # Every function we need to chase down the rabbit hole
-  encoded_functions = unname(sapply(all_functions,
-                             function(x) { paste0(package_name,
-                                                  ifelse(x %in% function_results$public,
-                                                         "::",
-                                                         ":::"),
-                                                  name_need_quote(x)) }))
+  encoded_functions = unname(vapply(
+    all_functions,
+    function(x) {
+      paste0(
+        package_name,
+        ifelse(x %in% function_results$public,
+          "::",
+          ":::"
+        ),
+        name_need_quote(x)
+      )
+    },
+    ""
+  ))
 
   # Figure out which functions each function calls
   results = sapply(encoded_functions,

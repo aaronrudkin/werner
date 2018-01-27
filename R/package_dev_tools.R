@@ -14,7 +14,7 @@ diagnose_werner_failures = function(package_name) {
   z = explore_package(package_name)
 
   # Drop keys with no calls
-  z[sapply(z, is.null)] = NULL
+  z[vapply(z, is.null, logical(1))] = NULL
 
   # Subset to just keys with INVALID calls
   zz = lapply(z, function(x) {
@@ -22,7 +22,7 @@ diagnose_werner_failures = function(package_name) {
   })
 
   # Nuke the remaining ones, which are character(0)
-  zz[sapply(zz, length) == 0] = NULL
+  zz[vapply(zz, length, numeric(1)) == 0] = NULL
 
   return(zz)
 }

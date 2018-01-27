@@ -1,0 +1,15 @@
+language: r
+sudo: false
+cache: packages
+warnings_are_errors: false
+matrix:
+  include:
+  - os: linux
+    r: release
+  - os: linux
+    r: oldrel
+r_packages:
+- covr
+after_success:
+- test $TRAVIS_OS_NAME == "linux" && Rscript -e 'covr::coveralls()'
+- test $TRAVIS_OS_NAME == "linux" && Rscript -e "devtools::build()"
