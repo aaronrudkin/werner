@@ -7,23 +7,28 @@
 #' to be a two-pass parser
 #' @importFrom rlang is_lang lang_head lang_tail is_primitive lang_fn
 capture_internal_function_def = function(line, function_name, cache_this) {
+  # If it's not a language call, it shouldn't be here.
   if(!is_lang(line)) {
     return()
   }
 
+  # Verify that this is either <- or = as a function
   if(deparse(lang_head(line))[[1]] %in% c("<-", "=")) {
+    # variable_name = assigned_to()
     variable_name = deparse(lang_tail(line)[[1]])
-    assigned_to = lang_fn(
-      lang_tail(line)[[2]]
-      )
+    assigned_to = lang_fn(lang_tail(line)[[2]])
 
+    # Check to make sure assigned_to is a function, not a value
     if(is_primitive(assigned_to) &&
        deparse(assigned_to) == ".Primitive(\"function\")") {
 
+      # Need to create package cache from scratch
       if(!"internal_fn_defn" %in% names(cache_this)) {
         cache_this[["internal_fn_defn"]] = list()
       }
 
+      # Need to create this function's cache from scratch or add to existing
+      # cache
       if(!function_name %in% names(cache_this[["internal_fn_defn"]])) {
         cache_this[["internal_fn_defn"]][[function_name]] = c(variable_name)
       } else {
@@ -33,6 +38,8 @@ capture_internal_function_def = function(line, function_name, cache_this) {
       }
     }
   }
+
+  # No need to return, we modified the environment
 }
 
 #' Determines whether an R object name needs to be backticked for to be used.
@@ -212,8 +219,27 @@ where_is_foreign_function_from = function(current_function,
   return(cache_this[["wifff"]][[current_function]])
 }
 
-# Given a line, either recursive break it apart into symbols or
-# if you get to symbols, return the symbols
+#' Gets function calls of interest in a "line" of R code.
+#'
+#' This function takes a line of R code (which should be of type `language`) and
+#' recursively processes the statements within that line, extracting those that
+#' are function calls. We exempt the built-in packages (except the package being
+#' evaluated, if it is a built-in package). Functions that are not found are
+#' namespaced with the "INVALID::" prefix.
+#'
+#' @param line A line of R code (type `language`)
+#' @param all_functions A vector of character strings listing every function in
+#' the package; used to check the current namespace
+#' @param package_name A character vector containing the name of the package
+#' @param function_name A character vector containing the name of the function
+#' being called.
+#' @param argument_names A vector of character strings containing the arguments
+#' of the current function; this is in case a function is passed through in the
+#' argument list.
+#' @param cache_this An environment, used to memoise the calls and keep track of
+#' functions defined inside this line.
+#' @return NULL or a vector of character strings containing the namespaced names
+#' of function calls.
 #' @importFrom rlang lang_tail lang_head lang_name is_lang
 get_calls_from_line = function(line,
                                all_functions,
@@ -420,15 +446,20 @@ get_calls_from_function = function(function_name,
                                  argument_names,
                                  cache_this)))
 
+  # If we have any INVALID calls and some functions that were defined inside the
+  # function, then it's possible some of the invalid calls are to those
+  # functions. If so, let's remove them from the list.
   if(any(grepl("^INVALID::", results)) &&
      length(cache_this[["internal_fn_defn"]][[function_name]])) {
 
+    # Invalid calls
     invalid_ids = which(grepl("^INVALID::", results))
+    # Calls that match the internal functions.
     found_funcs = which(gsub("^INVALID::", "", results) %in%
                           cache_this[["internal_fn_defn"]][[function_name]])
 
+    # Drop the intersection
     afflicted_ids = intersect(invalid_ids, found_funcs)
-
     results = results[-afflicted_ids]
   }
 

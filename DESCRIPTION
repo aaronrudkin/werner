@@ -2,7 +2,6 @@ Package: werner
 Type: Package
 Title: Improve Package Code By Mapping Relationships Between Functions
 Version: 1.0.0
-Date: 2018-01-27
 Authors@R: c(person("Aaron", "Rudkin", email = "rudkin@ucla.edu", role = c("aut", "cre")))
 Description: Improving package code quality requires understanding the 
     relationship between package functions. werner creates an adjacency matrix to

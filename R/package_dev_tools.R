@@ -24,5 +24,9 @@ diagnose_werner_failures = function(package_name) {
   # Nuke the remaining ones, which are character(0)
   zz[vapply(zz, length, numeric(1)) == 0] = NULL
 
+  # Return NULL if it's an empty list
+  if(!length(zz)) { return(NULL) }
+
+  # Return the list.
   return(zz)
 }

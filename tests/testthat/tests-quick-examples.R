@@ -23,12 +23,16 @@ test_that("Default built-in packages", {
   explore_package("stats")
   explore_package("stats4")
   explore_package("graphics")
+
+  expect_null(werner:::diagnose_werner_failures("stats4"))
 })
 
 test_that("Dependencies that we're loading anyway", {
   explore_package("rlang")
-  explore_package("methods")
   adjacency_matrix("Matrix")
+
+  # Some unsupported items in `methods`
+  werner::diagnose_werner_failures("methods")
 })
 
 test_that("Dependencies that we're loading anyway 2", {
@@ -52,4 +56,8 @@ test_that("Self-flattery", {
   skip_if_not_installed("fabricatr")
   z = werner:::diagnose_werner_failures("fabricatr")
   expect_equal(length(z), 0)
+})
+
+test_that("Fail on fake package.", {
+  expect_error(explore_package("not_a_real_package"))
 })
