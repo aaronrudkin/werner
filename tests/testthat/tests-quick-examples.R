@@ -32,7 +32,7 @@ test_that("Dependencies that we're loading anyway", {
   adjacency_matrix("Matrix")
 
   # Some unsupported items in `methods`
-  werner::diagnose_werner_failures("methods")
+  werner:::diagnose_werner_failures("methods")
 })
 
 test_that("Dependencies that we're loading anyway 2", {
