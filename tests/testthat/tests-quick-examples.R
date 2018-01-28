@@ -61,3 +61,7 @@ test_that("Self-flattery", {
 test_that("Fail on fake package.", {
   expect_error(explore_package("not_a_real_package"))
 })
+
+test_that("Plotting method", {
+  plot_adjacency_matrix(adjacency_matrix("werner"))
+})

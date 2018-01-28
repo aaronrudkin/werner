@@ -2,8 +2,11 @@
 
 export(adjacency_matrix)
 export(explore_package)
+export(plot_adjacency_matrix)
 importFrom(Matrix,Matrix)
 importFrom(methods,findFunction)
+importFrom(qgraph,qgraph)
+importFrom(qgraph,qgraph.layout.fruchtermanreingold)
 importFrom(rlang,fn_fmls_names)
 importFrom(rlang,is_function)
 importFrom(rlang,is_lang)

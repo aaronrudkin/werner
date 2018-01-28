@@ -51,6 +51,8 @@ explore_package = function(package_name,
   # Close off progress bar
   clear_progress_bar(cache_this)
 
+  class(results) = "werner_call_list"
+
   return(results)
 }
 
