@@ -14,9 +14,20 @@ capture_internal_function_def = function(line, function_name, cache_this) {
 
   # Verify that this is either <- or = as a function
   if(deparse(lang_head(line))[[1]] %in% c("<-", "=")) {
+
     # variable_name = assigned_to()
     variable_name = deparse(lang_tail(line)[[1]])
-    assigned_to = lang_fn(lang_tail(line)[[2]])
+
+    # If the assignment is a private function of the package, the `lang_fn`
+    # extraction will fail -- but this is OK, because that means it's not
+    # a function definition, clearly.
+    assigned_to = tryCatch({
+      assigned_to_temp = lang_fn(lang_tail(line)[[2]])
+      assigned_to_temp
+    }, error = function(e) {
+      return(NULL)
+    })
+    if(is.null(assigned_to)) { return() }
 
     # Check to make sure assigned_to is a function, not a value
     if(is_primitive(assigned_to) &&
@@ -262,7 +273,6 @@ get_calls_from_line = function(line,
 
       ln
       }, error = function(e) {
-
         # Certain cases might be TRUE for is_lang but FALSE when you run
         # lang_name; one-term formula objects are one such. But that's OK,
         # these aren't functions, so we can ignore them.
