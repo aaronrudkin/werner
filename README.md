@@ -1,8 +1,8 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-werner: Improve R package quality by mapping interdependence between functions.
-===============================================================================
+werner: Improve R package quality by mapping it. <img src="man/figures/werner-logo-small.png" align="right" />
+--------------------------------------------------------------------------------------------------------------
 
 [![Build Status](https://travis-ci.org/aaronrudkin/werner.svg?branch=master)](https://travis-ci.org/aaronrudkin/werner) [![Coverage Status](https://coveralls.io/repos/github/aaronrudkin/werner/badge.svg?branch=master)](https://coveralls.io/github/aaronrudkin/werner?branch=master)
 
