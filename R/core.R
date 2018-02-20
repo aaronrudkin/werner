@@ -25,7 +25,7 @@ explore_package = function(package_name,
   function_results = get_functions_from_package(package_name, cache_this)
   all_functions = c(function_results$public, function_results$private)
 
-  # Every function we need to chase down the rabbit hole
+  # Namespace the functions according to whether they are exported.
   encoded_functions = unname(vapply(
     all_functions,
     function(x) {
@@ -41,7 +41,8 @@ explore_package = function(package_name,
     ""
   ))
 
-  # Figure out which functions each function calls
+  # Figure out which functions each function calls by calling
+  # get_calls_from_function for each function.
   results = sapply(encoded_functions,
                    get_calls_from_function,
                    all_functions,
@@ -51,6 +52,7 @@ explore_package = function(package_name,
   # Close off progress bar
   clear_progress_bar(cache_this)
 
+  # Class the results so I can use S3 methods later.
   class(results) = "werner_call_list"
 
   return(results)
@@ -80,6 +82,8 @@ explore_package = function(package_name,
 adjacency_matrix = function(package_name,
                             coerce_to_matrix = FALSE,
                             show_progress = FALSE) {
+
+  # Get the raw data
   results = explore_package(package_name, show_progress=show_progress)
   encoded_functions = names(results)
 
@@ -89,6 +93,7 @@ adjacency_matrix = function(package_name,
                             nrow = length(encoded_functions),
                             sparse = TRUE)
   colnames(adjacency_matrix) = rownames(adjacency_matrix) = encoded_functions
+  # Convert the list format to the cell-wise adjacency matrix format
   for(row_name in encoded_functions) {
     for(column_name in results[[row_name]]) {
       if(column_name %in% encoded_functions) {
@@ -97,6 +102,7 @@ adjacency_matrix = function(package_name,
     }
   }
 
+  # Sparse Matrix or Matrix?
   if(coerce_to_matrix) { return(as.matrix(adjacency_matrix)) }
   return(adjacency_matrix)
 }
