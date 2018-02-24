@@ -15,7 +15,10 @@
 #' calls.
 #' @export
 explore_package = function(package_name,
-                           show_progress=FALSE) {
+                           show_progress=FALSE,
+                           ...) {
+  override = list(...)
+
   # Create a new global cache environment to proto-memoise the package function
   # lookups.
   cache_this = new.env()
@@ -40,6 +43,10 @@ explore_package = function(package_name,
     },
     ""
   ))
+
+  if("func_name" %in% names(override)) {
+    encoded_functions = override[["func_name"]]
+  }
 
   # Figure out which functions each function calls by calling
   # get_calls_from_function for each function.
@@ -88,21 +95,21 @@ adjacency_matrix = function(package_name,
   encoded_functions = names(results)
 
   # Build the adjacency matrix.
-  adjacency_matrix = Matrix(0,
-                            ncol = length(encoded_functions),
-                            nrow = length(encoded_functions),
-                            sparse = TRUE)
-  colnames(adjacency_matrix) = rownames(adjacency_matrix) = encoded_functions
+  adjacency_mat = Matrix(0,
+                         ncol = length(encoded_functions),
+                         nrow = length(encoded_functions),
+                         sparse = TRUE)
+  colnames(adjacency_mat) = rownames(adjacency_mat) = encoded_functions
   # Convert the list format to the cell-wise adjacency matrix format
   for(row_name in encoded_functions) {
     for(column_name in results[[row_name]]) {
       if(column_name %in% encoded_functions) {
-        adjacency_matrix[row_name, column_name] = 1
+        adjacency_mat[row_name, column_name] = 1
       }
     }
   }
 
   # Sparse Matrix or Matrix?
-  if(coerce_to_matrix) { return(as.matrix(adjacency_matrix)) }
-  return(adjacency_matrix)
+  if(coerce_to_matrix) { return(as.matrix(adjacency_mat)) }
+  return(adjacency_mat)
 }

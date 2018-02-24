@@ -4,7 +4,7 @@
 \alias{explore_package}
 \title{Maps relationships between functions in a package.}
 \usage{
-explore_package(package_name, show_progress = FALSE)
+explore_package(package_name, show_progress = FALSE, ...)
 }
 \arguments{
 \item{package_name}{a character string containing the name of an installed
